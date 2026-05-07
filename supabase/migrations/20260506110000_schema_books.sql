@@ -26,8 +26,11 @@ create table public.books (
 );
 
 create index books_isbn_13_idx on public.books (isbn_13) where isbn_13 is not null;
+-- to_tsvector(regconfig, text) is IMMUTABLE; the (text, text) form is STABLE
+-- and rejected for index expressions. Cast the literal so the resolver picks
+-- the regconfig overload.
 create index books_title_authors_idx on public.books using gin (
-  to_tsvector('english', title || ' ' || array_to_string(authors, ' '))
+  to_tsvector('english'::regconfig, title || ' ' || array_to_string(authors, ' '))
 );
 
 comment on table public.books is
