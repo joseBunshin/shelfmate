@@ -1,0 +1,44 @@
+name: supabase CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-ci.yml"
+  pull_request:
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-ci.yml"
+
+permissions:
+  contents: read
+
+# This workflow is the CI gate for the privacy-affected migration discipline
+# documented in AGENTS.md. The pgTAP suite must pass on every PR that touches
+# supabase/ — any RLS regression fails merge.
+
+jobs:
+  pgtap:
+    name: Migrations + pgTAP
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Boot local Supabase stack
+        run: supabase start
+
+      - name: Run pgTAP suite
+        run: supabase test db
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup

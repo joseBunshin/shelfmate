@@ -1,0 +1,3 @@
+-- Seed data for local development.
+-- Empty in U1; U2 onward will seed test users + sample books for the
+-- pgTAP suite and local dev convenience.
