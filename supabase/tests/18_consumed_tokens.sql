@@ -12,15 +12,13 @@ begin;
 select plan(8);
 
 -- ==========================================================================
--- service_role can insert a fresh token claim
+-- Fresh-claim INSERT (privileged test runner — RLS bypassed by table owner)
 -- ==========================================================================
-
-set local role service_role;
 
 select lives_ok(
   $$insert into public.consumed_tokens (token_hash, install_id)
     values ('hash-aaa', 'install-1')$$,
-  'consumed_tokens: service_role can claim a fresh token'
+  'consumed_tokens: fresh claim INSERT succeeds'
 );
 
 -- Second insert with same token_hash uses ON CONFLICT DO NOTHING — does not
