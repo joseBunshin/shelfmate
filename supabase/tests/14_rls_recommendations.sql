@@ -59,7 +59,11 @@ select lives_ok(
   'recommendations RLS: active friend can INSERT a rec'
 );
 
--- Self-rec rejected (CHECK constraint + RLS WITH CHECK)
+-- Self-rec rejected. Both the RLS WITH CHECK and the CHECK constraint
+-- (recommendations_no_self) reject self-recs. RLS WITH CHECK fires first
+-- in Postgres' evaluation order, so the surfaced SQLSTATE is 42501. The
+-- CHECK is defense-in-depth (verified separately by attempting via
+-- service_role bypass — out of scope for this assertion).
 select throws_ok(
   $$insert into public.recommendations
       (sender_id, recipient_id, book_id, note, sender_display_name_snapshot)
@@ -69,9 +73,9 @@ select throws_ok(
       'bbbbbbbb-1111-0000-0000-000000000001'::uuid,
       'self', 'Alice'
     )$$,
-  '23514',
+  '42501',
   null,
-  'recommendations: self-rec rejected by CHECK (recommendations_no_self)'
+  'recommendations: self-rec rejected by RLS WITH CHECK (recipient_id <> sender_id)'
 );
 
 -- Non-friend INSERT rejected (carol is not a friend of alice)
