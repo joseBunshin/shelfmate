@@ -16,18 +16,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/auth/auth_providers.dart';
-import '../features/auth/presentation/first_book_prompt_screen.dart';
+import '../core/env/env.dart';
 import '../features/auth/presentation/genre_picker_screen.dart';
 import '../features/auth/presentation/log_in_screen.dart';
 import '../features/auth/presentation/sign_up_screen.dart';
+import '../features/library/presentation/library_screen.dart';
 
 GoRouter buildRouter(WidgetRef ref) {
+  // Dev-mode bypass: when running without Supabase/secrets configured,
+  // skip the auth gate so the app shells past sign-up into Library/etc.
+  // This is the only behavior difference between dev and prod builds —
+  // U1.3 will set Env.isConfigured = true via build-time --dart-define
+  // values, restoring the real auth-redirect flow.
+  final devBypass = !Env.isConfigured;
+
   return GoRouter(
-    initialLocation: '/sign-up',
+    initialLocation: devBypass ? '/home' : '/sign-up',
     refreshListenable: _GoRouterRefreshStream(
       ref.read(authServiceProvider).authStateChanges,
     ),
     redirect: (context, state) {
+      if (devBypass) return null;
+
       final signedIn = ref.read(isSignedInProvider);
       final onAuthRoute =
           state.matchedLocation == '/sign-up' ||
@@ -45,14 +55,7 @@ GoRouter buildRouter(WidgetRef ref) {
         builder: (context, _) =>
             GenrePickerScreen(onDone: () => context.go('/home')),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, _) => FirstBookPromptScreen(
-          onAdd: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add Book flow lands in U4')),
-          ),
-        ),
-      ),
+      GoRoute(path: '/home', builder: (_, _) => const LibraryScreen()),
     ],
   );
 }
