@@ -7,7 +7,7 @@
 
 begin;
 
-select plan(26);
+select plan(25);
 
 -- ==========================================================================
 -- Setup (privileged role): three users + one friendship + one block
@@ -182,22 +182,17 @@ select is(
   'users RLS: own UPDATE actually persisted'
 );
 
--- attempting to update another user's row succeeds-with-zero-rows under RLS
--- (RLS makes the row invisible to UPDATE, not an error)
-select is(
-  (with attempted as (
-    update public.users set display_name = 'hacked'
-      where id = '22222222-2222-2222-2222-222222222222'::uuid
-      returning 1
-  ) select count(*)::int from attempted),
-  0,
-  'users RLS: authenticated UPDATE on another user touches 0 rows'
-);
+-- attempting to update another user's row silently affects no rows under
+-- RLS (UPDATE policy USING (id = auth.uid()) hides bob's row from the
+-- update path). SELECT visibility is allowed (display_name is public),
+-- so verify by reading back: bob's display_name should be unchanged.
+update public.users set display_name = 'hacked'
+  where id = '22222222-2222-2222-2222-222222222222'::uuid;
 
 select is(
   (select display_name from public.users where id = '22222222-2222-2222-2222-222222222222'::uuid),
-  null,
-  'users RLS: foreign-row UPDATE attempt did not leak via RETURNING (nothing visible to read back)'
+  'Bob',
+  'users RLS: foreign-row UPDATE silently did nothing (Bob''s display_name unchanged)'
 );
 
 -- friendships INSERT: only as initiator, only pending, only when in pair
