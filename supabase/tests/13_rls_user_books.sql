@@ -88,9 +88,18 @@ select is(
   'user_books RLS: stranger with everyone × everyone → carol visible (no friendship needed for everyone)'
 );
 
--- Set carol writer to friends → alice (no friendship with carol) loses visibility
+-- Set carol writer to friends → alice (no friendship with carol) loses visibility.
+-- Privileged context required because privacy_settings RLS only allows users
+-- to UPDATE their OWN row; alice cannot UPDATE carol's settings.
+reset role;
 update public.privacy_settings set writer_setting = 'friends'
   where user_id = '33333333-3333-3333-3333-333333333333'::uuid;
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text,
+  true
+);
 
 select is(
   (select count(*)::int from public.user_books where user_id = '33333333-3333-3333-3333-333333333333'::uuid),
@@ -98,9 +107,18 @@ select is(
   'user_books RLS: stranger with writer=friends + no friendship → INVISIBLE'
 );
 
--- Restore carol everyone, set alice viewer to only_me → alice loses visibility on others
+-- Restore carol everyone, set alice viewer to only_me → alice loses visibility on others.
+-- carol setting is foreign to alice; alice's setting is her own. Use privileged
+-- role for the carol update; alice can update her own settings under RLS.
+reset role;
 update public.privacy_settings set writer_setting = 'everyone'
   where user_id = '33333333-3333-3333-3333-333333333333'::uuid;
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text,
+  true
+);
 update public.privacy_settings set viewer_setting = 'only_me'
   where user_id = '11111111-1111-1111-1111-111111111111'::uuid;
 
