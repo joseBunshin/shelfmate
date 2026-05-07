@@ -26,12 +26,11 @@ create table public.books (
 );
 
 create index books_isbn_13_idx on public.books (isbn_13) where isbn_13 is not null;
--- to_tsvector(regconfig, text) is IMMUTABLE; the (text, text) form is STABLE
--- and rejected for index expressions. Cast the literal so the resolver picks
--- the regconfig overload.
-create index books_title_authors_idx on public.books using gin (
-  to_tsvector('english'::regconfig, title || ' ' || array_to_string(authors, ' '))
-);
+-- Title FTS index dropped for v1: book search hits Open Library / Google
+-- Books first (per U4); the local cache is looked up by ISBN. If full-text
+-- title search becomes needed later, generate a tsvector column rather than
+-- inlining the expression (array_to_string is STABLE — locale-dependent —
+-- which Postgres rejects in index expressions).
 
 comment on table public.books is
   'Public cache of book metadata from Open Library / Google Books. Public read; INSERT for authenticated users; UPDATE/DELETE service_role only.';
