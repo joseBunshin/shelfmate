@@ -13,6 +13,11 @@
 --   "More restrictive wins" intersection is computed in fn_can_see_comment
 --   (lands with user_books in a later U2 migration).
 
+-- citext extension for case-insensitive usernames. Loaded BEFORE the table
+-- definition so the column type resolves. Schema-qualified reference below
+-- since the extension lives in `extensions` per Supabase convention.
+create extension if not exists citext with schema extensions;
+
 -- ==========================================================================
 -- users — public mirror of auth.users with profile-shaped data
 -- ==========================================================================
@@ -22,7 +27,7 @@
 create table public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null check (length(display_name) between 1 and 50),
-  username citext unique check (
+  username extensions.citext unique check (
     username is null
     or (length(username) between 3 and 30 and username ~ '^[a-z0-9_]+$')
   ),
@@ -32,9 +37,6 @@ create table public.users (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
--- citext extension powers case-insensitive usernames; load it now (idempotent).
-create extension if not exists citext with schema extensions;
 
 create index users_username_idx on public.users (username) where username is not null;
 create index users_active_idx on public.users (id) where deletion_in_progress = false;
