@@ -1,45 +1,35 @@
+// App entry point. U3 wires the full Riverpod provider scope, Supabase
+// initialisation, theme, and go_router configuration.
+//
+// Real auth, Branch, Sentry init happen here once U1.2 secrets exist.
+// Until then, the app boots into the auth screen and authentication
+// against an unconfigured Supabase project will surface a clear error.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
+import 'core/env/env.dart';
+import 'core/supabase/client.dart';
+import 'routing/routes.dart';
+import 'theme/app_theme.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await bootstrapSupabase(url: Env.supabaseUrl, anonKey: Env.supabaseAnonKey);
   runApp(const ProviderScope(child: ShelfMateApp()));
 }
 
-/// Root widget. U1 placeholder — full routing + theme land in U3.
-class ShelfMateApp extends StatelessWidget {
+class ShelfMateApp extends ConsumerWidget {
   const ShelfMateApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = buildRouter(ref);
+    return MaterialApp.router(
       title: 'ShelfMate',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const _BootPlaceholder(),
-    );
-  }
-}
-
-class _BootPlaceholder extends StatelessWidget {
-  const _BootPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('ShelfMate')),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'ShelfMate v1 — U1 scaffold.\n\n'
-            'Auth, library, friends, recommendations, lists, '
-            'discover, share card, and settings ship in U3–U8.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
+      theme: buildLightTheme(),
+      darkTheme: buildDarkTheme(),
+      routerConfig: router,
     );
   }
 }
