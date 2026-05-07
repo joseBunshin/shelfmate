@@ -19,6 +19,19 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Force every Kotlin compile task in dependent plugins to use language
+// version 1.8. Some Flutter plugins (notably sentry_flutter 8.x) declare
+// languageVersion = 1.6, which Kotlin 2.x rejects. Bumping at the
+// orchestration layer avoids forking the plugins.
+subprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
