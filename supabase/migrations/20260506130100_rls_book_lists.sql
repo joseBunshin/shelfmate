@@ -28,10 +28,10 @@ create policy book_lists_select_authed on public.book_lists
         visibility = 'public'
         or (visibility = 'friends'
             and public.fn_friendship_status(auth.uid(), owner_id) = 'active')
-        or exists (
-          select 1 from public.book_list_shares s
-          where s.list_id = book_lists.id and s.recipient_id = auth.uid()
-        )
+        -- fn_has_list_share bypasses RLS on book_list_shares; using a
+        -- raw EXISTS would recurse into book_list_shares' policy which
+        -- in turn queries book_lists.
+        or public.fn_has_list_share(book_lists.id, auth.uid())
       )
     )
   );
@@ -121,25 +121,21 @@ create policy book_list_items_service_all on public.book_list_items
 -- book_list_shares
 -- ==========================================================================
 
+-- All "is the caller the owner of this list" checks below use
+-- fn_user_owns_list (SECURITY DEFINER, bypasses RLS) to avoid recursing
+-- into book_lists' own policy which queries book_list_shares.
 create policy book_list_shares_select_party on public.book_list_shares
   for select to authenticated
   using (
     recipient_id = auth.uid()
-    or exists (
-      select 1 from public.book_lists bl
-       where bl.id = book_list_shares.list_id and bl.owner_id = auth.uid()
-    )
+    or public.fn_user_owns_list(book_list_shares.list_id, auth.uid())
   );
 
--- Owner can create shares; the recipient must not be blocked by the owner
--- and the owner must not be blocked by the recipient.
+-- Owner can create shares; the recipient must not be blocked by the owner.
 create policy book_list_shares_insert_owner on public.book_list_shares
   for insert to authenticated
   with check (
-    exists (
-      select 1 from public.book_lists bl
-       where bl.id = book_list_shares.list_id and bl.owner_id = auth.uid()
-    )
+    public.fn_user_owns_list(book_list_shares.list_id, auth.uid())
     and not public.fn_is_blocked(auth.uid(), recipient_id)
   );
 
@@ -148,10 +144,7 @@ create policy book_list_shares_delete_party on public.book_list_shares
   for delete to authenticated
   using (
     recipient_id = auth.uid()
-    or exists (
-      select 1 from public.book_lists bl
-       where bl.id = book_list_shares.list_id and bl.owner_id = auth.uid()
-    )
+    or public.fn_user_owns_list(book_list_shares.list_id, auth.uid())
   );
 
 create policy book_list_shares_service_all on public.book_list_shares
