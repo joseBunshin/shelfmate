@@ -1,0 +1,89 @@
+name: app release (signed iOS + Android → TestFlight + Play Internal)
+
+# Manually triggered until U8 ships. Per plan U1 + Open Question on GHA macOS
+# minutes (deferred to user decision in plan-review): private-repo free tier
+# provides ~200 macOS minutes/month at 10x multiplier. A signed Flutter iOS
+# build is ~15-25 min, so 8-13 builds before paid kicks in. Mitigation
+# strategy is a deferred decision — see docs/plans/.../#from-2026-05-06-plan-review.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: "Release notes for TestFlight + Play Internal"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: iOS signed build → TestFlight
+    runs-on: macos-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Riverpod codegen
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # U1.3 wires the actual signing + upload steps. This stub fails loudly
+      # if the workflow is dispatched before the signing certs are uploaded.
+      - name: Verify signing secrets present
+        env:
+          APPLE_SIGNING_CERT_P12: ${{ secrets.APPLE_SIGNING_CERT_P12 }}
+          APPLE_PROVISIONING_PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+        run: |
+          if [ -z "$APPLE_SIGNING_CERT_P12" ] || [ -z "$APPLE_PROVISIONING_PROFILE" ]; then
+            echo "::error::iOS signing secrets missing. Complete U1.2 setup first."
+            exit 1
+          fi
+          echo "TODO(U1.3): import signing cert + provisioning profile + run flutter build ipa --release"
+          echo "TODO(U1.3): upload .ipa to TestFlight via fastlane pilot or app-store-connect-api"
+
+  android:
+    name: Android signed build → Play Internal Testing
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Riverpod codegen
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify signing secrets present
+        env:
+          GOOGLE_PLAY_KEYSTORE_JKS: ${{ secrets.GOOGLE_PLAY_KEYSTORE_JKS }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$GOOGLE_PLAY_KEYSTORE_JKS" ] || [ -z "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Android signing secrets missing. Complete U1.2 setup first."
+            exit 1
+          fi
+          echo "TODO(U1.3): write keystore from secret, run flutter build appbundle --release"
+          echo "TODO(U1.3): upload .aab to Play Internal Testing via fastlane supply"
