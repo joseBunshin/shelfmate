@@ -5,9 +5,13 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("U1 web scaffold smoke", () => {
-  test("root page renders ShelfMate heading", async ({ page }) => {
+  test("root page renders marketing hero", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "ShelfMate" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: /Books, with the people you actually know\./,
+      })
+    ).toBeVisible();
   });
 
   test("rec landing route renders with recId param", async ({ page }) => {
