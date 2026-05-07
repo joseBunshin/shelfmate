@@ -71,11 +71,14 @@ begin
     else 'everyone'
   end::public.privacy_audience;
 
-  -- 7. apply effective to friendship state
+  -- 7. apply effective to friendship state. fn_friendship_status returns
+  -- NULL when no friendship row exists; coalesce so the function returns
+  -- a clean boolean rather than NULL (RLS treats NULL as false anyway,
+  -- but direct callers expect a non-NULL boolean).
   if v_effective = 'only_me' then
     return false;
   elsif v_effective = 'friends' then
-    return public.fn_friendship_status(viewer, writer) = 'active';
+    return coalesce(public.fn_friendship_status(viewer, writer) = 'active', false);
   else
     return true;
   end if;
